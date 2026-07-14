@@ -1,0 +1,39 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  "baseBranchPatterns": [
+    "latest"
+  ],
+  "timezone": "Europe/Paris",
+  "schedule": [
+    "before 1am"
+  ],
+  "prCreation": "immediate",
+  "automerge": true,
+  "prHourlyLimit": 15,
+  "packageRules": [
+    {
+      "matchDatasources": [
+        "github-tags",
+        "github-runners"
+      ],
+      "groupName": "githubCi"
+    },
+    {
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["golang", "docker.io/library/golang"],
+      "groupName": "goVersion"
+    },
+    {
+      "matchDatasources": ["golang-version"],
+      "groupName": "goVersion"
+    },
+    {
+      "matchDatasources": ["go"],
+      "groupName": "goPackages",
+      "gomodTidy": true
+    }
+  ]
+}
