@@ -14,11 +14,13 @@ RUN ls && CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
     -trimpath -ldflags="-s -w" \
     -o external-dns-mdns-server cmd/external-dns-mdns-server.go
 
-RUN echo 'external-dns-mdns-server:x:10001:10001:External DNS MDNs Server Daemon:/:/usr/bin/nologin' >password
+RUN echo 'external-dns-mdns-server:x:10001:10001:External DNS MDNs Server Daemon:/:/usr/bin/nologin' >passwd
+RUN echo 'external-dns-mdns-server:x:10001:' >group
 
 FROM scratch
 COPY --from=build --chown=1:1 --chmod=0755 /go/src/github.com/nvalembois/external-dns-mdns-server/external-dns-mdns-server /external-dns-mdns-server
-COPY --from=build --chown=0:0 --chmod=0644 /go/src/github.com/nvalembois/external-dns-mdns-server/password /etc/password
+COPY --from=build --chown=0:0 --chmod=0644 /go/src/github.com/nvalembois/external-dns-mdns-server/passwd /etc/passwd
+COPY --from=build --chown=0:0 --chmod=0644 /go/src/github.com/nvalembois/external-dns-mdns-server/group /etc/group
 COPY --from=build /etc/ssl/certs /etc/ssl/certs
 USER external-dns-mdns-server
 ENTRYPOINT ["/external-dns-mdns-server"]
