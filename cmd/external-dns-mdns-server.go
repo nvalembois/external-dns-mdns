@@ -18,7 +18,7 @@ import (
 
 func main() {
 	var (
-		listenAddr   = flag.String("listen-address", "127.0.0.1:8888", "address the ExternalDNS webhook server listens on (loopback only — never expose off-host)")
+		listenAddr   = flag.String("listen-address", "127.0.0.1:8080", "address the ExternalDNS webhook server listens on (loopback only — never expose off-host)")
 		domainFilter = flag.String("domain-filter", "local", "comma-separated list of domains this provider accepts records for")
 		iface        = flag.String("interface", "", "network interface to bind mDNS multicast to (empty = OS default)")
 	)
