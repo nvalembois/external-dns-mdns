@@ -67,14 +67,10 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), *wait)
 	defer cancel()
 
-	// Shutdown servers in background
-	go webhookSrv.Shutdown(ctx)
-	go healthSrv.Shutdown(ctx)
-
+	// Shutdown servers
 	log.Println("shutting down")
-
-	// Wait for shutdown or deadline
-	<-ctx.Done()
+	webhookSrv.Shutdown(ctx)
+	healthSrv.Shutdown(ctx)
 
 	log.Println("end")
 }
@@ -94,7 +90,7 @@ func startHttpServer(name string, listenAddr *string, routes func(mux *http.Serv
 	go func() {
 		log.Printf("ExternalDNS %s server listening on %s", name, *listenAddr)
 		if err := srv.ListenAndServe(); err != nil {
-			log.Fatalf("%s server stopped: %v", name, err)
+			log.Printf("%s server stopped: %v", name, err)
 		}
 	}()
 
