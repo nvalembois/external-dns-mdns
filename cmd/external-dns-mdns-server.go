@@ -24,9 +24,11 @@ import (
 func main() {
 	// command args
 	var (
-		listenAddr   = flag.String("listen-address", "127.0.0.1:8888", "address the ExternalDNS webhook server listens on (loopback only — never expose off-host)")
-		domainFilter = flag.String("domain-filter", "local", "comma-separated list of domains this provider accepts records for")
-		iface        = flag.String("interface", "", "network interface to bind mDNS multicast to (empty = OS default)")
+		webhookListenAddr = flag.String("webhook-listen-address", "127.0.0.1:8888", "address the ExternalDNS webhook server listens on (loopback only — never expose off-host)")
+		healthListenAddr  = flag.String("health-listen-address", "127.0.0.1:8080", "address the ExternalDNS health server listens on (loopback only — never expose off-host)")
+		domainFilter      = flag.String("domain-filter", "local", "comma-separated list of domains this provider accepts records for")
+		iface             = flag.String("interface", "", "network interface to bind mDNS multicast to (empty = OS default)")
+		wait              = flag.Duration("graceful-timeout", time.Second*60, "the duration for which the server gracefully wait for existing connections to finish - e.g. 15s or 1m")
 	)
 	flag.Parse()
 
@@ -49,15 +51,39 @@ func main() {
 	filters := strings.Split(*domainFilter, ",")
 	ws := webhook.NewServer(s, filters)
 	log.Printf("ExternalDNS webhook server initialized for domains %v", filters)
+	// start webhook http server
+	webhookSrv := startHttpServer("webhook", webhookListenAddr, ws.Routes)
 
-	// start http server
+	// start health http server
+	healthSrv := startHttpServer("health", healthListenAddr, health.Routes)
+
+	// Wait for graceful shutdown signal
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	// Block until we receive our signal.
+	<-c
+
+	// Create a deadline to wait for.
+	ctx, cancel := context.WithTimeout(context.Background(), *wait)
+	defer cancel()
+
+	// Shutdown servers in background
+	go webhookSrv.Shutdown(ctx)
+	go healthSrv.Shutdown(ctx)
+
+	log.Println("shutting down")
+
+	// Wait for shutdown or deadline
+	<-ctx.Done()
+
+	log.Println("end")
+}
+
+func startHttpServer(name string, listenAddr *string, routes func(mux *http.ServeMux)) *http.Server {
 	mux := http.NewServeMux()
-	ws.Routes(mux)
-	health.Routes(mux)
-
+	routes(mux)
 	srv := &http.Server{
-		Addr: *listenAddr,
-		// Good practice to set timeouts to avoid Slowloris attacks.
+		Addr:         *listenAddr,
 		WriteTimeout: time.Second * 15,
 		ReadTimeout:  time.Second * 15,
 		IdleTimeout:  time.Second * 60,
@@ -66,31 +92,11 @@ func main() {
 
 	// Run our server in a goroutine so that it doesn't block.
 	go func() {
-		log.Printf("ExternalDNS webhook server listening on %s", *listenAddr)
+		log.Printf("ExternalDNS %s server listening on %s", name, *listenAddr)
 		if err := srv.ListenAndServe(); err != nil {
-			log.Fatalf("webhook server stopped: %v", err)
+			log.Fatalf("%s server stopped: %v", name, err)
 		}
 	}()
 
-	// Handle shutdown
-	c := make(chan os.Signal, 1)
-	// We'll accept graceful shutdowns when quit via SIGINT (Ctrl+C)
-	// SIGKILL, SIGQUIT or SIGTERM (Ctrl+/) will not be caught.
-	signal.Notify(c, os.Interrupt)
-
-	// Block until we receive our signal.
-	<-c
-
-	// Create a deadline to wait for.
-	var wait time.Duration
-	ctx, cancel := context.WithTimeout(context.Background(), wait)
-	defer cancel()
-	// Doesn't block if no connections, but will otherwise wait
-	// until the timeout deadline.
-	srv.Shutdown(ctx)
-	// Optionally, you could run srv.Shutdown in a goroutine and block on
-	// <-ctx.Done() if your application should wait for other services
-	// to finalize based on context cancellation.
-	log.Println("shutting down")
-
+	return srv
 }
