@@ -25,7 +25,7 @@ func main() {
 	// command args
 	var (
 		webhookListenAddr = flag.String("webhook-listen-address", "127.0.0.1:8888", "address the ExternalDNS webhook server listens on (loopback only — never expose off-host)")
-		healthListenAddr  = flag.String("health-listen-address", "127.0.0.1:8080", "address the ExternalDNS health server listens on (loopback only — never expose off-host)")
+		healthListenAddr  = flag.String("health-listen-address", "0.0.0.0:8080", "address the ExternalDNS health server listens on (loopback only — never expose off-host)")
 		domainFilter      = flag.String("domain-filter", "local", "comma-separated list of domains this provider accepts records for")
 		iface             = flag.String("interface", "", "network interface to bind mDNS multicast to (empty = OS default)")
 		wait              = flag.Duration("graceful-timeout", time.Second*60, "the duration for which the server gracefully wait for existing connections to finish - e.g. 15s or 1m")
